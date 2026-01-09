@@ -15,6 +15,12 @@ from pathlib import Path
 
 DEBUG = config("DEBUG", default=False, cast=bool)
 
+ALLOWED_HOSTS = config(
+    "ALLOWED_HOSTS",
+    default="*",
+    cast=lambda v: [s.strip() for s in v.split(",")]
+)
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -49,6 +55,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -149,6 +156,10 @@ STATIC_URL = 'static/'
 LUMICORE_BASE_URL = config("LUMICORE_BASE_URL")
 X_CANDIDATE_ID = config("X_CANDIDATE_ID")
 
+STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Make sure logs folder exists
 logs_path = BASE_DIR / "logs"
