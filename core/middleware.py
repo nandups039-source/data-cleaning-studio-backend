@@ -11,27 +11,30 @@ class CandidateValidationMiddleware:
 
     def __call__(self, request):
         try:
-            candidate_id = request.headers.get("X-Candidate-Id")
+            # Only validate if URL contains 'documents/'
+            if "documents/" in request.path:
+                candidate_id = request.headers.get("X-Candidate-Id")
 
-            if not candidate_id:
-                log_error("Missing X-Candidate-Id header")
-                raise InvalidCandidateException()
+                if not candidate_id:
+                    log_error("Missing X-Candidate-Id header")
+                    raise InvalidCandidateException()
 
-            if candidate_id != self.expected_candidate_id:
-                log_error(
-                    "Invalid candidate ID received",
-                    extra={"received_candidate_id": candidate_id}
+                if candidate_id != self.expected_candidate_id:
+                    log_error(
+                        "Invalid candidate ID received",
+                        extra={"received_candidate_id": candidate_id}
+                    )
+                    raise InvalidCandidateException()
+
+                log_info(
+                    "Candidate ID validated successfully",
+                    extra={"candidate_id": candidate_id}
                 )
-                raise InvalidCandidateException()
 
-            log_info(
-                "Candidate ID validated successfully",
-                extra={"candidate_id": candidate_id}
-            )
+            # Proceed normally for all requests
             return self.get_response(request)
 
         except InvalidCandidateException as e:
-            # Use JsonResponse here for middleware
             return JsonResponse({
                 "hasError": True,
                 "errorCode": e.detail.get("errorCode", 1002),
