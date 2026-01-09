@@ -43,9 +43,11 @@ INSTALLED_APPS = [
 
     "rest_framework",  
     "document_processor",
+    "corsheaders"
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -56,6 +58,25 @@ MIDDLEWARE = [
     # custom middlewares
     'core.middleware.CandidateValidationMiddleware'
 ]
+
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+]
+
+from corsheaders.defaults import default_headers
+# Allow your custom header
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "X-Candidate-Id",
+]
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.BasicAuthentication",
+    ]
+}
+
+
 
 ROOT_URLCONF = 'core.urls'
 

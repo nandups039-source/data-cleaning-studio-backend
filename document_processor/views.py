@@ -11,8 +11,13 @@ from .services.document_utils import DocumentUtils
 class FetchRawView(APIView):
     """Fetch raw records from LumiCore"""
     def get(self, request):
+        batch = request.query_params.get("batch", "1")  # as string
+        try:
+            batch = int(batch)
+        except ValueError:
+            batch = 1
         utils = DocumentUtils()
-        raw_data = utils.fetch()
+        raw_data = utils.fetch(batch)
 
         if not raw_data or "records" not in raw_data:
             log_error("Failed to fetch raw data from LumiCore API", extra={"raw_data": raw_data})
