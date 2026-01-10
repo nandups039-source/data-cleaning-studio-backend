@@ -3,168 +3,275 @@
 A Django REST API application for fetching, normalizing, and cleaning data from the Lumicore API.
 
 ## Features
+# Lumicore Data Cleaning Studio — Backend
 
-- **Fetch Raw Data**: Retrieve records from the Lumicore API
-- **Data Cleaning**: Normalize and deduplicate records
-- **Document Processing**: Comprehensive document processing pipeline
-- **Logging**: Structured logging with separate info and error logs
-- **RESTful API**: Built with Django REST Framework
+A lightweight Django REST backend that fetches raw document records from the Lumicore API, normalizes and deduplicates them for human review, then validates and submits cleaned records back to Lumicore.
 
-## Tech Stack
+**Status:** Minimal production-like implementation for the Lumicore data cleaning challenge.
 
-- **Django** 6.0.1
-- **Django REST Framework** 3.16.1
-- **Python** 3.14
-- **SQLite** (default database)
+**Contents:**
+- Project overview
+- Setup and environment
+- API reference (endpoints, parameters, examples)
+- Internal behavior summary
+- Development & testing
 
-## Prerequisites
+---
 
-- Python 3.8 or higher
-- pip (Python package manager)
+**Overview**
 
-## Installation
+This service provides three primary endpoints under the `/documents/` prefix:
+- `GET /documents/fetch-raw/` — fetch a batch of raw records from Lumicore
+- `POST /documents/fetch-clean/` — normalize and deduplicate edited raw records for UI display
+- `POST /documents/submit-clean/` — validate cleaned records and submit them to Lumicore
 
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd backend
-   ```
+All responses use a consistent JSON wrapper:
+- `hasError` (bool)
+- `errorCode` (int)
+- `message` (string)
+- `data` (object)
 
-2. **Create a virtual environment**
-   ```bash
-   python -m venv venv
-   ```
+---
 
-3. **Activate the virtual environment**
-   - On Windows:
-     ```bash
-     venv\Scripts\activate
-     ```
-   - On macOS/Linux:
-     ```bash
-     source venv/bin/activate
-     ```
+**Tech stack**
 
-4. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+- Python (3.8+ recommended)
+- Django 6.x
+- Django REST Framework
+- SQLite (default dev DB)
 
-5. **Create a `.env` file** in the root directory:
-   ```env
-   DEBUG=True
-   LUMICORE_BASE_URL=your_lumicore_api_url
-   X_CANDIDATE_ID=your_candidate_id
-   SECRET_KEY=your-secret-key-here
-   ```
+---
 
-6. **Run database migrations**
-   ```bash
-   python manage.py migrate
-   ```
+**Quick setup**
 
-7. **Create a superuser (optional, for admin access)**
-   ```bash
-   python manage.py createsuperuser
-   ```
+1. Clone the repository and enter it:
 
-## Running the Application
+```bash
+git clone <repo-url>
+cd data-cleaning-studio-BE
+```
 
-Start the development server:
+2. Create and activate a virtual environment (Windows example):
+
+```powershell
+python -m venv venv
+venv\\Scripts\\Activate.ps1    # or use venv\\Scripts\\activate
+```
+
+3. Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+4. Create a `.env` (or set env vars) in the project root. Required variables:
+
+```
+DEBUG=True
+DJANGO_SECRET_KEY=your-secret-key
+LUMICORE_BASE_URL=https://lumicore.example.com
+X_CANDIDATE_ID=expected-candidate-id
+```
+
+Notes:
+- The settings expect `DJANGO_SECRET_KEY`, not `SECRET_KEY`.
+- `LUMICORE_BASE_URL` should be the base URL of the external Lumicore API used by this service.
+
+5. Run migrations and (optionally) create a superuser:
+
+```bash
+python manage.py migrate
+python manage.py createsuperuser
+```
+
+6. Start the development server:
+
 ```bash
 python manage.py runserver
 ```
 
-The API will be available at `http://127.0.0.1:8000/`
+Visit `http://127.0.0.1:8000/admin/` for Django admin (if you created a superuser).
 
-## API Endpoints
+---
 
-### Fetch Raw Data
-- **Endpoint**: `GET /api/fetch-raw/`
-- **Description**: Fetches raw records from the Lumicore API
-- **Response**: Returns batch ID and raw records
+**Authentication / Candidate validation**
 
-### Clean Data
-- **Endpoint**: `POST /api/clean-data/`
-- **Description**: Normalizes and deduplicates records
-- **Request Body**:
-  ```json
-  {
-    "batchId": "string",
-    "records": [...]
-  }
-  ```
-- **Response**: Returns cleaned and deduplicated records
+- Requests to endpoints under `/documents/` must include the `X-Candidate-Id` header matching the `X_CANDIDATE_ID` configured in settings. The custom middleware `CandidateValidationMiddleware` enforces this and will return a JSON error response on failure.
+- DRF `BasicAuthentication` is enabled by default in settings; adjust `REST_FRAMEWORK` as needed.
 
-## Project Structure
+---
 
-```
-backend/
-├── core/                    # Main Django project settings
-│   ├── settings.py         # Django settings
-│   ├── urls.py             # Main URL configuration
-│   ├── wsgi.py             # WSGI configuration
-│   └── middleware.py       # Custom middleware
-├── document_processor/      # Main application
-│   ├── views.py            # API views
-│   ├── models.py           # Database models
-│   ├── serializers.py      # DRF serializers
-│   ├── urls.py             # App URL configuration
-│   └── services/           # Business logic services
-├── utils/                   # Utility modules
-│   ├── exceptions.py       # Custom exceptions
-│   ├── helper.py           # Helper functions
-│   ├── logger.py           # Logging utilities
-│   └── responses.py        # API response utilities
-├── logs/                    # Application logs
-├── manage.py               # Django management script
-└── requirements.txt        # Python dependencies
+**API Reference**
+
+Base path: `http://<host>:<port>/documents/`
+
+1) Fetch raw
+
+- URL: `GET /documents/fetch-raw/`
+- Query params:
+   - `batch` (int, optional) — batch number to fetch (default: `1`).
+- Headers:
+   - `X-Candidate-Id`: required
+- Success response (200):
+
+```json
+{
+   "hasError": false,
+   "errorCode": -1,
+   "message": "Success",
+   "data": {
+      "batchId": "<batch_id>",
+      "records": [ ... raw records as received from Lumicore ... ]
+   }
+}
 ```
 
-## Environment Variables
+- Failure: returns `hasError: true` with `errorCode` and `message`.
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `DEBUG` | Enable/disable debug mode | Yes |
-| `LUMICORE_BASE_URL` | Base URL for Lumicore API | Yes |
-| `X_CANDIDATE_ID` | Candidate ID for API authentication | Yes |
-| `SECRET_KEY` | Django secret key | Yes |
+2) Clean (normalize & deduplicate)
 
-## Logging
+- URL: `POST /documents/fetch-clean/`
+- Body (JSON):
 
-The application logs to two files in the `logs/` directory:
-- `info.log`: Information and warning messages
-- `error.log`: Error and critical messages
+```json
+{
+   "batchId": "string",
+   "records": [ { /* raw record objects */ }, ... ]
+}
+```
 
-Logs are also output to the console during development.
+- Headers:
+   - `X-Candidate-Id`: required
+- Behavior:
+   - Normalizes incoming raw records to a stable schema
+   - Parses dates (several formats supported), amounts (stripped of currency), and maps multiple source keys to canonical fields
+   - Deduplicates by `doc_id` and returns camelCase keys ready for UI
 
-## Development
+- Success response (200):
 
-### Running Tests
+```json
+{
+   "hasError": false,
+   "errorCode": -1,
+   "message": "Success",
+   "data": {
+      "batchId": "<batchId>",
+      "cleanedItems": [
+         {
+            "docId": "...",
+            "type": "...",
+            "counterparty": "...",
+            "project": "...",
+            "expiryDate": "YYYY-MM-DD",
+            "amount": 123.45
+         }
+      ]
+   }
+}
+```
+
+3) Submit cleaned records
+
+- URL: `POST /documents/submit-clean/`
+- Body (JSON):
+
+```json
+{
+   "batchId": "string",
+   "cleanedItems": [
+      {
+         "docId": "...",
+         "type": "...",
+         "counterparty": "...",
+         "project": "...",
+         "expiryDate": "YYYY-MM-DD",
+         "amount": 123.45
+      }
+   ]
+}
+```
+
+- Headers:
+   - `X-Candidate-Id`: required
+- Behavior:
+   - Converts incoming camelCase keys to snake_case for validation
+   - Validates each record against `DocumentSerializer` which requires: `doc_id`, `type`, `counterparty`, `project`, `expiry_date` (date), and `amount` (float)
+   - If any records fail validation, responds with `hasError: true` and a `data.invalid_records` array describing failures
+   - On successful validation, forwards cleaned records to Lumicore `POST /api/submit` (configured by `LUMICORE_BASE_URL`) and returns the external API response
+
+- Validation failure example (400):
+
+```json
+{
+   "hasError": true,
+   "errorCode": 1004,
+   "message": "Some records are invalid",
+   "data": {
+      "invalid_records": [
+         { "index": 1, "doc_id": "ABC123", "errors": { "expiry_date": ["Expiry Date is invalid."] } }
+      ]
+   }
+}
+```
+
+---
+
+**Internal behavior summary**
+
+- `document_processor.services.DocumentUtils` implements core business logic:
+   - `fetch(batch)`: GETs `LUMICORE_BASE_URL/api/data?batch=<n>` with `X-Candidate-Id` header, retry/backoff logic
+   - `normalize(raw_records)`: maps multiple possible input keys to canonical fields using `FIELD_MAP`; parses dates and amounts
+   - `validate_and_deduplicate(normalized_records)`: removes duplicates by `doc_id`, drops records missing `doc_id`, and returns camelCase payloads
+   - `submit(batch_id, cleaned_items)`: POSTs cleaned data to `LUMICORE_BASE_URL/api/submit` with retries/backoff
+
+- `document_processor.serializers.DocumentSerializer` enforces required fields for final submission and triggers errors returned to the client.
+
+- The app uses `utils.responses.APIResponse` to standardize success/failure payload shapes.
+
+---
+
+**Error codes** (used in code)
+
+- `1001` — fetch failed / server error while fetching
+- `1002` — missing batch or records / candidate header issues (middleware may use other codes)
+- `1003` — missing batch or cleaned_items on submit
+- `1004` — validation failed for some records
+- `1005` — submission to Lumicore failed after retries
+
+(Refer to view code for exact places these are raised.)
+
+---
+
+**Development & testing**
+
+- Run tests:
+
 ```bash
 python manage.py test
 ```
 
-### Making Migrations
+- Run migrations:
+
 ```bash
 python manage.py makemigrations
 python manage.py migrate
 ```
 
-### Accessing Django Admin
-1. Create a superuser (if not already created)
-   ```bash
-   python manage.py createsuperuser
-   ```
-2. Start the server and navigate to `http://127.0.0.1:8000/admin/`
+- To enable debug logging and view logs created under `/logs/`, set `DEBUG=True` and check `logs/info.log` and `logs/error.log`.
 
-## Contributing
+---
 
-1. Create a feature branch
-2. Make your changes
-3. Ensure tests pass
-4. Submit a pull request
+**Extending / Notes**
 
-## License
+- The field mapping (`FIELD_MAP`) and date formats (`DATE_FORMATS`) live in `document_processor/services/constants.py` and are easy to extend to support additional source formats.
+- The candidate header is enforced only for `/documents/` routes by `core.middleware.CandidateValidationMiddleware`.
+- For production usage, ensure `DEBUG=False`, set proper `ALLOWED_HOSTS`, and secure environment variables.
 
-This project is part of the Lumicore Data Cleaning Challenge.
+---
+
+**Deployment**
+- Render config for deployment
+
+---
+
+Project root: see `manage.py` and app code in `document_processor/`.
