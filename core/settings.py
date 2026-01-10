@@ -62,7 +62,7 @@ MIDDLEWARE = [
 
 
 CORS_ALLOWED_ORIGINS = [
-    "https://data-cleaning-studio.vercel.app"
+    "https://data-cleaning-studio.vercel.app",
     "http://localhost:3000",
 ]
 
